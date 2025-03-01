@@ -13,8 +13,6 @@ jobs:
       matrix:
         platform: [amd64, arm64]
     steps:
-      - name: Upload mask
-        run: echo "::add-mask::${{ secrets.UPLOAD_URL }}"
       - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -24,28 +22,28 @@ jobs:
       - name: Install deps and build
         run: |
           sudo apt update
-          sudo apt install build-essential g++ cmake ninja-build python3 libgtk2.0-dev s3cmd -y
+          sudo apt install build-essential g++ cmake ninja-build python3 libgtk2.0-dev -y
           mkdir jcef_build && cd jcef_build
+          # Set the GN flags to enable proprietary codecs
+          export CEF_USE_GN=1
+          export GN_DEFINES="is_official_build=true proprietary_codecs=true ffmpeg_branding=Chrome"
           cmake -G "Ninja" -DPROJECT_ARCH=${{ matrix.platform }} -DCMAKE_BUILD_TYPE=Release ..
           ninja -j4
           mv native/Release linux_${{ matrix.platform }}
           strip linux_${{ matrix.platform }}/libcef.so
           tar -czf linux_${{ matrix.platform }}.tar.gz linux_${{ matrix.platform }}
           sha256sum linux_${{ matrix.platform }}.tar.gz > linux_${{ matrix.platform }}.tar.gz.sha256
-      - name: Copy s3cfg
-        run: echo "${{ secrets.S3_CFG }}" > ~/.s3cfg
       - name: Upload java-cef build
-        run: |
-          s3cmd put -P /home/runner/work/java-cef/java-cef/jcef_build/linux_${{ matrix.platform }}.tar.gz s3://mcef-us-1/java-cef-builds/${{ github.sha }}/linux_${{ matrix.platform }}.tar.gz
-          s3cmd put -P /home/runner/work/java-cef/java-cef/jcef_build/linux_${{ matrix.platform }}.tar.gz.sha256 s3://mcef-us-1/java-cef-builds/${{ github.sha }}/linux_${{ matrix.platform }}.tar.gz.sha256
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-${{ matrix.platform }}-build
+          path: jcef_build/linux_${{ matrix.platform }}.tar.gz
   java-cef-windows:
     runs-on: [windows-2022]
     strategy:
       matrix:
         platform: [amd64, arm64]
     steps:
-      - name: Upload mask
-        run: echo "::add-mask::${{ secrets.UPLOAD_URL }}"
       - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -53,14 +51,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
       - uses: ilammy/msvc-dev-cmd@v1
-      - name: Install s3cmd
-        run: |
-          pip install python-dateutil
-          Invoke-WebRequest -Uri "https://github.com/s3tools/s3cmd/archive/master.zip" -OutFile "D:\s3cmd.zip"
-          Expand-Archive -Path "D:\s3cmd.zip" -DestinationPath "D:\s3cmd"
       - name: Build
         run: |
           mkdir jcef_build && cd jcef_build
+          $env:CEF_USE_GN = "1"
+          $env:GN_DEFINES = "is_official_build=true proprietary_codecs=true ffmpeg_branding=Chrome"
           cmake -G "Ninja" -DPROJECT_ARCH=${{ matrix.platform }} -DCMAKE_BUILD_TYPE=Release ..
           ninja -j4
           cd native
@@ -69,20 +64,17 @@ jobs:
           move native/windows_${{ matrix.platform }} windows_${{ matrix.platform }}
           tar -czf windows_${{ matrix.platform }}.tar.gz windows_${{ matrix.platform }}
           Get-FileHash -Algorithm SHA256 -Path "windows_${{ matrix.platform }}.tar.gz" | Out-File "windows_${{ matrix.platform }}.tar.gz.sha256"
-      - name: Copy s3cfg
-        run: echo "${{ secrets.S3_CFG }}" > "$HOME\AppData\Roaming\s3cmd.ini"
       - name: Upload java-cef build
-        run: |
-          python D:\s3cmd\s3cmd-master\s3cmd put -P D:\a\java-cef\java-cef\jcef_build\windows_${{ matrix.platform }}.tar.gz s3://mcef-us-1/java-cef-builds/${{ github.sha }}/windows_${{ matrix.platform }}.tar.gz
-          python D:\s3cmd\s3cmd-master\s3cmd put -P D:\a\java-cef\java-cef\jcef_build\windows_${{ matrix.platform }}.tar.gz.sha256 s3://mcef-us-1/java-cef-builds/${{ github.sha }}/windows_${{ matrix.platform }}.tar.gz.sha256
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-${{ matrix.platform }}-build
+          path: jcef_build/windows_${{ matrix.platform }}.tar.gz
   java-cef-macos:
     runs-on: [macos-12]
     strategy:
       matrix:
         platform: [amd64, arm64]
     steps:
-      - name: Upload mask
-        run: echo "::add-mask::${{ secrets.UPLOAD_URL }}"
       - uses: actions/checkout@v4
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -92,17 +84,18 @@ jobs:
       - run: |
           brew install ninja
           brew install coreutils
-          brew install s3cmd
           sudo xcode-select --switch /Applications/Xcode_13.1.app
           mkdir jcef_build && cd jcef_build
+          # Set the GN flags to enable proprietary codecs
+          export CEF_USE_GN=1
+          export GN_DEFINES="is_official_build=true proprietary_codecs=true ffmpeg_branding=Chrome"
           cmake -G "Ninja" -DPROJECT_ARCH=${{ matrix.platform }} -DCMAKE_BUILD_TYPE=Release ..
           ninja -j4
           mv native/Release macos_${{ matrix.platform }}
           tar -czf macos_${{ matrix.platform }}.tar.gz macos_${{ matrix.platform }}
           sha256sum macos_${{ matrix.platform }}.tar.gz > macos_${{ matrix.platform }}.tar.gz.sha256
-      - name: Copy s3cfg
-        run: echo "${{ secrets.S3_CFG }}" > ~/.s3cfg
       - name: Upload java-cef build
-        run: |
-          s3cmd put -P /Users/runner/work/java-cef/java-cef/jcef_build/macos_${{ matrix.platform }}.tar.gz s3://mcef-us-1/java-cef-builds/${{ github.sha }}/macos_${{ matrix.platform }}.tar.gz
-          s3cmd put -P /Users/runner/work/java-cef/java-cef/jcef_build/macos_${{ matrix.platform }}.tar.gz.sha256 s3://mcef-us-1/java-cef-builds/${{ github.sha }}/macos_${{ matrix.platform }}.tar.gz.sha256
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-${{ matrix.platform }}-build
+          path: jcef_build/macos_${{ matrix.platform }}.tar.gz
