@@ -34,7 +34,7 @@ jobs:
           tar -czf linux_${{ matrix.platform }}.tar.gz linux_${{ matrix.platform }}
           sha256sum linux_${{ matrix.platform }}.tar.gz > linux_${{ matrix.platform }}.tar.gz.sha256
       - name: Upload java-cef build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.platform }}-build
           path: jcef_build/linux_${{ matrix.platform }}.tar.gz
@@ -65,7 +65,7 @@ jobs:
           tar -czf windows_${{ matrix.platform }}.tar.gz windows_${{ matrix.platform }}
           Get-FileHash -Algorithm SHA256 -Path "windows_${{ matrix.platform }}.tar.gz" | Out-File "windows_${{ matrix.platform }}.tar.gz.sha256"
       - name: Upload java-cef build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.platform }}-build
           path: jcef_build/windows_${{ matrix.platform }}.tar.gz
@@ -95,7 +95,7 @@ jobs:
           tar -czf macos_${{ matrix.platform }}.tar.gz macos_${{ matrix.platform }}
           sha256sum macos_${{ matrix.platform }}.tar.gz > macos_${{ matrix.platform }}.tar.gz.sha256
       - name: Upload java-cef build
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.platform }}-build
           path: jcef_build/macos_${{ matrix.platform }}.tar.gz
